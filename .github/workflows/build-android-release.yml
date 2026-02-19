@@ -1,0 +1,81 @@
+# Build Brainbox Android APK and create a Release with download link.
+# Trigger: push a tag v* (e.g. v1.0) OR run manually from Actions tab.
+
+name: Build Android APK & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK components
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            BrainboxAndroid/.gradle
+            BrainboxAndroid/build
+            ~/.gradle/caches
+          key: brainbox-android-${{ hashFiles('BrainboxAndroid/**/*.gradle.kts', 'BrainboxAndroid/**/gradle-wrapper.properties') }}
+          restore-keys: brainbox-android-
+
+      - name: Install Gradle wrapper
+        working-directory: BrainboxAndroid
+        run: |
+          curl -sL -o gradle.zip https://services.gradle.org/distributions/gradle-8.2-bin.zip
+          unzip -j -q gradle.zip 'gradle-8.2/lib/plugins/gradle-wrapper-8.2.jar' -d gradle/wrapper/
+          mv gradle/wrapper/gradle-wrapper-8.2.jar gradle/wrapper/gradle-wrapper.jar
+          rm gradle.zip
+          chmod +x gradlew
+
+      - name: Build APK
+        working-directory: BrainboxAndroid
+        run: ./gradlew assembleDebug --no-daemon
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+
+      - name: Upload APK artifact (manual run)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: brainbox-app-debug
+          path: BrainboxAndroid/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Create Release and upload APK (tag push)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: BrainboxAndroid/app/build/outputs/apk/debug/app-debug.apk
+          generate_release_notes: true
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

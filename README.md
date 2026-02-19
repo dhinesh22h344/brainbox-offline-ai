@@ -50,13 +50,8 @@ swift TestBrainLogic.swift
 1. Open the **BrainboxAndroid** folder in Android Studio.
 2. Sync Gradle, then Run (▶) on an emulator or connected device.
 
-**Or build APK from CLI:**
-
-```bash
-cd BrainboxAndroid
-./gradlew assembleDebug
-# APK: app/build/outputs/apk/debug/app-debug.apk
-```
+**To build an APK and share with someone:**  
+See **[BrainboxAndroid/BUILD_APK.md](BrainboxAndroid/BUILD_APK.md)** — Build → Build APK(s) in Android Studio, then send `app-debug.apk` to the user.
 
 ---
 
